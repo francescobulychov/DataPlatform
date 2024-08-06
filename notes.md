@@ -149,7 +149,7 @@ Quindi piuttosto che cercare di separare i concetti e immaginare una distinzione
 Prima di iniziare a valutare le varie tecnologie e metterle a confronto, mi sembra sensato andare a definire quali saranno i requisiti fondamentali della data platform, in modo da poter ricercare in futuro le caratteristiche piú adatte al mio caso d'uso nelle tecnologie selezionate, e poter escludere automaticamente quelle che non le rispecchiano.
 
 In poche parole, la data platform prevede di raccogliere, monitorare ed analizzare i dati provenienti da un insieme di sensori delle stazioni di ricarica di auto elettriche.
-Dei dati probabili che potrebbero essere inviati da questi sensori sono:
+Delle probabili informazioni che potrebbe aver senso estrarre da questi sensori sono:
 - Tempo di sosta di ogni veicolo per ogni parcheggio;
 - Tempo di ricarica di ogni veicolo per ogni parcheggio;
 - Transazione effettuata dall'utente.
@@ -239,3 +239,86 @@ In conclusione, la data platform gestirá i dati nel seguente modo:
 - I dati verranno passati da Clickhouse a Grafana e quindi visualizzati.
 
 ![data_platform](https://github.com/user-attachments/assets/c2d28a55-8c47-4db7-ac5c-8789ffa415d7)
+
+
+# Temperature monitor
+
+La seguente applicazione di monitoraggio della temperatura é stata utile per prendere confidenza con le varie tecnologie utilizzate e per avere un punto di partenza per un progetto piú complesso.
+
+## Docker Compose
+É stato creato un file di docker compose per mettere assieme i tre servizi: Kafka, ClickHouse e Grafana.
+Per quanto riguarda Kafka, ho utilizzato il file di esempio dalla [repo ufficiale](https://github.com/apache/kafka/blob/trunk/docker/examples/docker-compose-files/single-node/plaintext/docker-compose.yml), per ClickHouse ho seguito la guida del [docker hub](https://hub.docker.com/r/clickhouse/clickhouse-server/), mentre per Grafana é stata molto utile la [guida ufficiale](https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/).
+
+Una volta fatto ció, ho reso persistenti i volumi per ClickHouse e Grafana, in modo da mantenere i database, le configurazioni e le dashboard.
+In questo caso é interessante notare che Grafana predilige le modifiche al file di configurazione tramite variabili dell'environment sul file di docker compose dove, per esempio, se la configurazione che vogliamo modificare é la seguente:
+```
+[dashboards]
+min_refresh_interval = 1s
+```
+é possibile aggiungere l'omonima variabile:
+```
+GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
+```
+ClickHouse invece prevede di aggiungere i file contenenti le modifiche della configurazione nelle seguenti cartelle:
+```
+/etc/clickhouse-server/config.d/
+/etc/clickhouse-server/users.d/
+```
+e sará ClickHouse stesso a integrare ed applicare le modifiche secondo quanto detto nella loro [documentazione](https://clickhouse.com/docs/en/operations/configuration-files).
+
+Sempre per quanto riguarda ClickHouse, é possibile aggiungere le query da eseguire durante l'inizializzazione del servizio nella cartella `docker-entrypoint-initdb.d` sotto forma di file .sql.
+
+I servizi devono essere avviati tramite l'eseguibile run.sh, che é un semplice script che controlla l'esistenza di tutti i file e le cartelle necessarie al corretto funzionamento, e nel caso della loro assenza li crea. Dopodiché identifica l'utente corrente e imposta ogni utente di ogni servizio con quest'ultimo, per evitare ogni tipo di problema relativo ai permessi.
+
+## From data generator to Kafka
+Per generare dei dati ipotetici di un sensore di temperatura ho scritto un semplice script in python che, dopo aver generato un messaggio contenente il timestamp e un numero randomico, crea un producer per Kafka, specificando il `bootstrap_server` e il `topic` in questione (in questo caso topic-test), e invia i dati sotto forma di JSON rendendoli disponibili ad eventuali consumer in ascolto.
+
+## From Kafka to ClickHouse
+
+Per fare in modo che una table di ClickHouse sia un consumer di Kafka é bastato configurare l'engine di quest'ultima nel seguente modo:
+```
+create table if not exists kafka_data (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'topic-test',
+    kafka_group_name = 'consumer-group-1',
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1
+;
+```
+Le ultime due opzioni non erano strettamente necessarie per il corretto funzionamento, ma hanno permesso di ottenere i dati non appena disponibili per vederne la rappresentazione grafica istantaneamente.
+
+In seguito é stata creata un'altra table collegata alla prima per estrarre i dati dal JSON e per poterla connettere a Grafana:
+```
+create table if not exists parse_data (
+    timestamp DateTime,
+    celsius INTEGER
+) engine = MergeTree()
+order by timestamp;
+
+create materialized view if not exists consumer to parse_data as
+select
+    toDateTime(JSONExtractString(json, 'timestamp')) as timestamp,
+    JSONExtractString (json, 'celsius') as celsius
+from kafka_data;
+```
+
+## From ClickHouse to Grafana
+
+Infine, grazie al rispettivo plugin, é stato aggiunto ClickHouse come sorgente di dati a Grafana ed é stata creata una dashboard che mostra l'andamento della temperatura e la media di quest'ultima.
+![grafana_temperature_example](https://github.com/user-attachments/assets/01fb5137-b3d8-4b69-b874-094c4f52e5e4)
+
+###### Sources
+- https://hub.docker.com/r/apache/kafka
+- https://github.com/apache/kafka/blob/trunk/docker/examples/docker-compose-files/single-node/plaintext/docker-compose.yml
+- https://kafka.apache.org/quickstart
+- https://needablackcoffee.medium.com/learn-apache-kafka-with-these-python-examples-454b5275109e
+- https://dboostme.medium.com/befriend-python-kafka-clickhouse-in-10-minutes-216902b9deab
+- https://hub.docker.com/r/clickhouse/clickhouse-server/
+- https://clickhouse.com/docs/en/install
+- https://clickhouse.com/docs/en/getting-started/quick-start
+- https://clickhouse.com/docs/knowledgebase/kafka-to-clickhouse-setup
+- https://clickhouse.com/docs/en/operations/configuration-files
+- https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/
