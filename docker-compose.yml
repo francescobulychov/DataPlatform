@@ -34,6 +34,8 @@ services:
        - ./clickhouse/var/lib/clickhouse/:/var/lib/clickhouse/
        - ./clickhouse/var/log/clickhouse-server/:/var/log/clickhouse-server/
        - ./clickhouse/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+       - ./clickhouse/etc/clickhouse-server/config.d/:/etc/clickhouse-server/config.d/
+       - ./clickhouse/etc/clickhouse-server/users.d/:/etc/clickhouse-server/users.d/
   grafana:
     image: grafana/grafana-enterprise
     hostname: grafana
