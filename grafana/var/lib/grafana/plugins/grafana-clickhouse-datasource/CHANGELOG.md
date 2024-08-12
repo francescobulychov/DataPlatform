@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.3.2
+
+### Fixes
+
+- Optimized performance for types dependent on the JSON converter
+- Dependency updates
+
 ## 4.3.1
 
 ### Features

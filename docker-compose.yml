@@ -1,6 +1,7 @@
 services:
+
   broker:
-    image: apache/kafka:latest
+    image: apache/kafka
     hostname: broker
     container_name: broker
     ports:
@@ -21,6 +22,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+
   clickhouse:
     image: clickhouse/clickhouse-server
     hostname: clickhouse
@@ -36,18 +38,27 @@ services:
        - ./clickhouse/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
        - ./clickhouse/etc/clickhouse-server/config.d/:/etc/clickhouse-server/config.d/
        - ./clickhouse/etc/clickhouse-server/users.d/:/etc/clickhouse-server/users.d/
+
   grafana:
     image: grafana/grafana-enterprise
     hostname: grafana
     container_name: grafana
     ports:
-    - '3000:3000'
+      - '3000:3000'
     user: '${CURRENT_UID}:${CURRENT_GID}'
     environment:
      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
     volumes:
       - './grafana/var/lib/grafana/:/var/lib/grafana/'
+
+  data-generator:
+    container_name: data-generator
+    build: ./
+    volumes:
+      - './data-generator:/app'
+    command: python3 main.py
+
 
 
 
