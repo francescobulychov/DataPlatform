@@ -50,7 +50,7 @@ services:
      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
      - GF_DASHBOARDS_MIN_REFRESH_INTERVAL=1s
     volumes:
-      - './grafana/var/lib/grafana/:/var/lib/grafana/'
+      - './grafana/etc/grafana/:/etc/grafana/'
 
   data-generator:
     container_name: data-generator

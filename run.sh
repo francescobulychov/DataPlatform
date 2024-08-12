@@ -6,7 +6,7 @@ dirs=(
     "./clickhouse/docker-entrypoint-initdb.d/"
     "./clickhouse/etc/clickhouse-server/config.d/"
     "./clickhouse/etc/clickhouse-server/users.d/"
-    "./grafana/var/lib/grafana/"
+    "./grafana/etc/grafana/"
     "./data-generator/"
 )
 
