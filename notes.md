@@ -268,10 +268,45 @@ e sará ClickHouse stesso a integrare ed applicare le modifiche secondo quanto d
 
 Sempre per quanto riguarda ClickHouse, é possibile aggiungere le query da eseguire durante l'inizializzazione del servizio nella cartella `docker-entrypoint-initdb.d` sotto forma di file .sql.
 
-I servizi devono essere avviati tramite l'eseguibile run.sh, che é un semplice script che controlla l'esistenza di tutti i file e le cartelle necessarie al corretto funzionamento, e nel caso della loro assenza li crea. Dopodiché identifica l'utente corrente e imposta ogni utente di ogni servizio con quest'ultimo, per evitare ogni tipo di problema relativo ai permessi.
+I servizi devono essere avviati tramite l'eseguibile run.sh, che é un semplice script che controlla l'esistenza di tutti i file e le cartelle necessarie al corretto funzionamento, e nel caso della loro assenza li crea. Dopodiché identifica l'utente corrente e imposta ogni utente di ogni servizio con quest'ultimo, per evitare ogni tipo di problema relativo ai permessi. Poiché lo script é stato scritto in bash, non supporta il sistema operativo Windows.
 
 ## From data generator to Kafka
-Per generare dei dati ipotetici di un sensore di temperatura ho scritto un semplice script in python che, dopo aver generato un messaggio contenente il timestamp e un numero randomico, crea un producer per Kafka, specificando il `bootstrap_server` e il `topic` in questione (in questo caso topic-test), e invia i dati sotto forma di JSON rendendoli disponibili ad eventuali consumer in ascolto.
+Per generare dei dati ipotetici di un sensore di temperatura ho scritto un semplice script in python che, dopo aver generato un messaggio contenente il timestamp e un numero randomico tra 0 e 30, crea un producer per Kafka, specificando il `bootstrap_server` e il `topic` in questione (in questo caso topic-test), e invia i dati sotto forma di JSON rendendoli disponibili ad eventuali consumer in ascolto. Dopodiché continua ad inviare ogni secondo il timestamp e un nuovo valore che non si discosta piú di un numero dal valore precedente, in modo da poter visualizzare su Grafana un grafico piú realistico.
+```
+def get_temperature(i):
+
+    if i == 0:
+        return i + 1
+    elif i == 30:
+        return i - 1
+    else:
+        return random.choice([i-1, i+1])
+
+
+def generate_data():
+
+    producer = KafkaProducer(bootstrap_servers='broker:19092')
+    celsius = random.randint(0, 30)
+
+    while True:
+        current_time = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
+        celsius = get_temperature(celsius)
+
+        new_message = dict(
+            timestamp = current_time,
+            celsius = celsius
+        )
+
+        producer.send(
+            topic='topic-test',
+            value=json.dumps(new_message).encode('utf-8')
+        )
+        print(f"[+] Generated temperature: {celsius}°C at {current_time}")
+        time.sleep(1)
+
+if __name__ == "__main__":
+    generate_data()
+```
 
 ## From Kafka to ClickHouse
 
