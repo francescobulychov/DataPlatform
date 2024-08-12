@@ -1,0 +1,5 @@
+# current user and group id
+.env
+
+# clickhouse logs and data
+clickhouse/var/
