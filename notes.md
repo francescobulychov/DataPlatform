@@ -357,3 +357,231 @@ Infine, grazie al rispettivo plugin, é stato aggiunto ClickHouse come sorgente 
 - https://clickhouse.com/docs/knowledgebase/kafka-to-clickhouse-setup
 - https://clickhouse.com/docs/en/operations/configuration-files
 - https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/
+
+
+# Charger station data generator
+Il generatore di dati di un'ipotetica colonnina di ricarica di auto elettriche é stato scritto in python e utilizza il multi-threading per simulare i dati di 100 colonnine di ricarica simultanemente, invocando la funzione `simulate_charging_station`.
+```
+if __name__ == "__main__":
+
+    charger_ids = [f'charger-{i}' for i in range(1, 101)]
+
+    threads = []
+    for charger_id in charger_ids:
+        thread = threading.Thread(target=simulate_charging_station, args=(charger_id,))
+        threads.append(thread)
+        thread.start()
+```
+
+Il generatore di dati é composto da 3 classi, dove ognuna rappresenta un sensore:
+- `ParkingSensor`: simula il sensore di parcheggio che riconosce quando un veicolo viene posteggiato o quando abbandona il parcheggio, inviando inoltre i dati riguardanti la relativa targa.  
+
+    É composto dai seguenti campi:
+    - `timestamp`;
+    - `charger_id`: stringa che identifica la colonnina di ricarica;
+    - `vehicle_detected`: valore booleano che indica se un veicolo é posteggiato o meno;
+    - `plate`: stringa che rappresenta la targa del veicolo in questione.
+
+    É composto dai seguenti metodi:
+    - `send_ParkingSensor_signal`: invocato ogni qualvolta che é necessario inviare il segnale;
+    - `detect_vehicle`: invocato quando viene riconosciuto un veicolo, utile per cambiare lo stato di `vehicle_detected` da `False` a `True` e a generare una stringa randomica per la targa;
+    - `detect_vehicle_leave`: invocato quando un veicolo abbandona il parcheggio, utile per cambiare lo stato di `vehicle_detected` da `True` a `False`.
+```
+class ParkingSensor:
+    def __init__(self, charger_id):
+        self.timestamp = get_timestamp()
+        self.charger_id = charger_id
+        self.vehicle_detected = False
+        self.plate = None
+
+    def send_ParkingSensor_signal(self):
+        data = dict(
+            timestamp = self.timestamp,
+            charger_id = self.charger_id,
+            vehicle_detected = self.vehicle_detected,
+            plate = self.plate
+        )
+        print(f"[+] Sending parking sensor signal:\n {data}\n")
+
+    def detect_vehicle(self):
+        self.timestamp = get_timestamp()
+        self.vehicle_detected = True
+        self.plate = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        self.send_ParkingSensor_signal()
+        
+    def detect_vehicle_leave(self):
+        self.timestamp = get_timestamp()
+        self.vehicle_detected = False
+        self.send_ParkingSensor_signal()
+```
+
+- `UserDataSensor`: simula il sensore che riconosce quando un utente, dopo aver parcheggiato il veicolo, si identifica alla colonnina tramite apposita app o tessera RFID e quando viene disconnesso.
+
+    É composto dai seguenti campi:
+    - `timestamp`;
+    - `charger_id`: stringa che identifica la colonnina di ricarica;
+    - `user_id`: stringa che identifica l'utente;
+    - `price`: float che rappresenta il prezzo dell'energia EUR/kWh che l'utente pagherá nella sessione di ricarica. Per mantenere un valore realistico, quest'ultimo é compreso tra 0.40EUR e 0.99EUR, e che solitamente varia tra un utente e l'altro in base all'applicazione che usa o all'abbonamento a cui é registrato;
+    - `user_connection`: valore booleano che indica se un utente é connesso o meno alla stazione di ricarica.
+
+    É composto dai seguenti metodi:
+    - `send_UserDataSensor_signal`: invocato ogni qualvolta che é necessario inviare il segnale;
+    - `connect_user`: invocato quando un utente si connette alla colonnina, genera quindi una stringa randomica che identifica l'utente e un float randomico che rappresenta il prezzo dell'energia;
+    - `disconnect_user`: invocato quando un utente si disconnette dalla colonnina.
+```
+class UserDataSensor:
+    def __init__(self, charger_id):
+        self.timestamp = get_timestamp()
+        self.charger_id = charger_id
+        self.user_id = None
+        self.price = None
+        self.user_connection = False
+
+    def send_UserDataSensor_signal(self):
+        data = dict(
+            timestamp = self.timestamp,
+            charger_id = self.charger_id,
+            user_id = self.user_id,
+            price = self.price,
+            user_connection = self.user_connection
+        )
+        print(f"[+] Sending user data sensor signal:\n {data}\n")
+    
+    def connect_user(self):
+        self.timestamp = get_timestamp()
+        self.user_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
+        self.price = round(random.uniform(0.40, 0.99), 2)
+        self.user_connection = True
+        self.send_UserDataSensor_signal()
+
+    def disconnect_user(self):
+        self.timestamp = get_timestamp()
+        self.user_id = self.user_id
+        self.price = self.price
+        self.user_connection = False
+        self.send_UserDataSensor_signal()
+```
+
+- `ChargerSensor`: simula il sensore connesso all'erogatore di energia, che quindi riconosce quando un veicolo viene collegato o scollegato e quanta energia deve essere emessa.
+
+    É composto dai seguenti campi:
+    - `timestamp`;ChargerSensor
+    - `charger_id`: stringa che identifica la colonnina di ricarica;
+    - `recharging`: valore booleano che rappresenta se il veicolo é collegato alla colonnina e quindi é possibile erogare energia;
+    - `energy_delivered`: intero che indica quanta energia il veicolo connesso supporta e di conseguenza quanta energia in kW deve essere erogata.
+
+    É composto dai seguenti metodi:
+    - `send_ChargerSensor_signal`: invocato ogni qualvolta che é necessario inviare il segnale;
+    - `start_recharging`: invocato quando un veicolo viene connesso alla colonnina di ricarica, genera quindi un valore randomico per la potenza in kW da erogare per il veicolo in questione;
+    - `stop_recharging`: invocato quando il veicolo termina la ricarica e viene disconnesso dalla colonnina. Questo metodo invoca inoltre `UserDataSensor.disconnect_user()` per disconnettere automaticamente l'utente ed essere pronto ad una nuova sessione di ricarica.
+```
+class ChargerSensor:
+    def __init__(self, charger_id):
+        self.timestamp = get_timestamp()
+        self.charger_id = charger_id
+        self.recharging = False
+        self.energy_delivered = 0
+
+    def send_ChargerSensor_signal(self):
+        data = dict(
+            timestamp = self.timestamp,
+            charger_id = self.charger_id,
+            recharging = self.recharging,
+            energy_delivered = self.energy_delivered
+        )
+        print(f"[+] Sending charger sensor signal:\n {data}\n")
+    
+    def start_recharging(self):
+        self.timestamp = get_timestamp()
+        self.recharging = True
+        self.energy_delivered = random.randint(10, 30)
+        self.send_ChargerSensor_signal()
+
+    def stop_recharging(self, UserDataSensor):
+        self.timestamp = get_timestamp()
+        self.recharging = False
+        self.energy_delivered = 0
+        self.send_ChargerSensor_signal()
+
+        UserDataSensor.disconnect_user()
+```
+
+La funzione principale `simulate_charging_station` permette di simulare un ipotetico traffico di dati dei sensori di una singola colonnina di ricarica, generando eventi randomici basati sulle probabilitá grazie alla funzione `probability_check` a cui viene passata la probabilitá in questione come parametro e la quale restituisce un valore booleano in base al successo o meno di questo evento.
+```
+def probability_check(probability):
+    if random.random() < probability:
+        return True
+    return False
+```
+
+La funzione `simulate_charging_station` inizializza per prima cosa i vari sensori.
+```
+def simulate_charging_station(charger_id):
+
+    parking_sensor = ParkingSensor(charger_id)
+    user_data_sensor = UserDataSensor(charger_id)
+    charger_sensor = ChargerSensor(charger_id)
+```
+
+Dopodiché entra in un loop in cui ogni secondo vengono generati i vari eventi, che sono i seguenti:
+- Quando non sono presenti veicoli sul parcheggio, c'é il 30% di probabilitá ogni secondo che possa arrivare un nuovo veicolo;
+```
+# 30% probability of vehicle detection if no vehicle is detected
+if not parking_sensor.vehicle_detected and probability_check(0.3):
+    parking_sensor.detect_vehicle()
+    continue
+```
+- Quando un veicolo é parcheggiato, c'é il 5% di probabilitá che quest'ultimo non usufruisca della colonnina di ricarica e vada via dopo poco, facendo cosí un'infrazione;
+```
+# 5% probability of vehicle not using the charger
+if parking_sensor.vehicle_detected and probability_check(0.05):
+    time.sleep(random.randint(5, 30))
+    parking_sensor.detect_vehicle_leave()
+    continue
+```
+- Quando un veicolo é parcheggiato, c'é il 95% di probabilitá che l'utente si connetta correttamente alla colonnina e inizi la sessione di ricarica. Dopodiché quest'ultima terminerá e l'utente verrá disconnesso.
+```
+# 95% probability of vehicle using the charger
+if parking_sensor.vehicle_detected:
+    time.sleep(random.randint(1, 3))
+    user_data_sensor.connect_user()
+
+    time.sleep(random.randint(1, 3))
+    charger_sensor.start_recharging()
+
+    time.sleep(random.randint(8, 10)) # 20, 40 change time
+
+    charger_sensor.stop_recharging(user_data_sensor)
+```
+- Quando un utente ha finito la sessione di ricarica ma é sul parcheggio, c'é il 15% di probabilitá che rimanga sul parcheggio oltre il tempo limite, generando cosí un'infrazione;
+```
+# 15% probability of user not leaving for a while
+if probability_check(0.15):
+    time.sleep(random.randint(7, 10))
+    parking_sensor.detect_vehicle_leave()
+    continue
+```
+- Quando un utente ha finito la sessione di ricarica ma é sul parcheggio, c'é l'85% di probabilitá che abbandoni il parcheggio subito dopo aver ricaricato il veicolo.
+```
+# 85% probability of user leaving without extra time
+time.sleep(random.randint(2, 5))
+parking_sensor.detect_vehicle_leave()
+continue
+```
+
+Ovviamente utilizzare tempistiche realistiche comporterebbe che ogni sessione di ricarica duri all'ancirca 40 minuti, perció i tempi simulati sono stati pesantemente abbreviati nel seguente modo:
+- Sessione realistica (30min - 50 min):
+    - 0s: arrivo dell'utente al parcheggio;
+    - 2m: l'utente si identifica alla colonnina;
+    - 1m: l'utente connette il proprio veicolo alla colonnina;
+    - 20m-40m: sessione di ricarica del veicolo;
+    - 5m: breve sosta al termine della ricarica.
+- Sessione simulata (30sec - 50 sec):
+    - 0s: arrivo dell'utente al parcheggio;
+    - 2s: l'utente si identifica alla colonnina;
+    - 1s: l'utente connette il proprio veicolo alla colonnina;
+    - 20s-40s: sessione di ricarica del veicolo;
+    - 5s: breve sosta al termine della ricarica.
+
+
+
