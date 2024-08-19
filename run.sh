@@ -18,7 +18,6 @@ for dir in ${dirs[@]}; do
 done
 
 files=(
-    "./clickhouse/docker-entrypoint-initdb.d/init.sql"
     "./clickhouse/etc/clickhouse-server/config.d/docker_related_config.xml"
     "./data-generator/main.py"
     "./data-generator/requirements.txt"
