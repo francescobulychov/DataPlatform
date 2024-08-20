@@ -547,7 +547,7 @@ if parking_sensor.vehicle_detected:
     user_data_sensor.connect_user()
 
     time.sleep(random.randint(1, 3))
-    charger_sensor.start_recharging()
+    charger_sensor.start_recharging
 
     time.sleep(random.randint(8, 10)) # 20, 40 change time
 
@@ -584,4 +584,51 @@ Ovviamente utilizzare tempistiche realistiche comporterebbe che ogni sessione di
     - 5s: breve sosta al termine della ricarica.
 
 
+# Apache Kafka
+Dopo aver valutato diverse opzioni, ho deciso di usare Kafka inviando tutti i segnali ad un solo topic, il quale peró é suddiviso in molteplici partizioni, esattamente una per ogni colonnina di ricarica. Questo permette di garantire l'ordine dei messaggi all'interno di una singola partizione e quindi per ogni colonnina di ricarica, data l'importanza di mantenere l'ordine degli eventi. Un'altra ragione fondamentale dietro questa scelta é la semplicitá di poter consumare i dati e aggregarli per analisi specifiche.
 
+L'idea sarebbe infatti quella di aggregare i dati con Apache Flink per creare un singolo record per ogni evento concluso, che inizia con l'arrivo del veicolo sul parcheggio e termina quando quest'ultimo lascia la postazione, in modo da avere le informazioni piú ordinate e sopratutto all'interno di una singola table da cui é possibile estrarre statistiche future piú facilmente. 
+
+I dati verranno in ogni caso salvati anche cosí come sono per una questione di storicizzazione o per qualche caso specifico in cui é richiesto avere il dato immediatamente.
+
+Questo approccio permette di aggiungere nuove colonnine semplicemente aggiungendo nuove partizioni al topic senza modificare la struttura esistente, poiché Kafka gestisce automaticamente il bilanciamento delle partizioni e garantisce la scalabilità orizzontale del sistema.
+
+Un'eventuale introduzione futura di topic per ogni luogo geografico migliora ulteriormente la scalabilità. Ad esempio, si potrebbe creare un topic per ogni città, regione o paese, con partizioni dedicate alle colonnine all'interno di quella specifica area geografica.
+
+## How it is implemeneted
+La creazione del topic con le rispettive partizioni (una per ogni colonnina simulata) é stata gestita interamente sullo script in python che si occupa di generare i dati, sfruttando la libreria di python `kafka-python-ng`.
+
+In questo caso é stato creato un topic chiamato `charger-station-signals` a cui sono state inizializzate 100 partizioni.  
+Dopodiché é stato inizializzato anche il `producer` che verrá usato ogni qualvolta verrá inviato un messaggio a Kafka.
+```
+def kafka_setup():
+    admin_client = KafkaAdminClient(bootstrap_servers='broker:19092', client_id='admin1')
+    
+    charger_station_topic = NewTopic(
+        name='charger-station-signals',
+        num_partitions=100,
+        replication_factor=1
+    )
+
+    admin_client.create_topics([charger_station_topic])
+    admin_client.close()
+
+    global producer
+    producer = KafkaProducer(bootstrap_servers='broker:19092')
+```
+
+Infine é stato creato un metodo `send_kafka` che si occupa di inviare il messaggio specificando:
+- Nome del topic;
+- Chiave da utilizzare, in questo caso il rispettivo `charger-id`;
+- Il messaggio in questione in formato JSON;
+- Numero della partizione a cui allocare il messaggio (`charger-0` allocato alla partizione 0 e cosí via).
+
+```
+def send_kafka(data):
+    producer.send(
+    topic='charger-station-signals',
+    key=data['charger_id'].encode('utf-8'),
+    value=json.dumps(data).encode('utf-8'),
+    partition=int(data['charger_id'].split('-')[-1])
+)
+```
