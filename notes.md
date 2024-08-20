@@ -547,7 +547,7 @@ if parking_sensor.vehicle_detected:
     user_data_sensor.connect_user()
 
     time.sleep(random.randint(1, 3))
-    charger_sensor.start_recharging
+    charger_sensor.start_recharging()
 
     time.sleep(random.randint(8, 10)) # 20, 40 change time
 
