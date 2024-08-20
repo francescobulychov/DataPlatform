@@ -3,6 +3,34 @@ import time
 import datetime
 import string
 import threading
+import json
+from kafka import KafkaProducer
+
+from kafka.admin import KafkaAdminClient, NewTopic
+from kafka.partitioner import DefaultPartitioner
+
+def kafka_setup():
+    admin_client = KafkaAdminClient(bootstrap_servers='broker:19092', client_id='admin1')
+    
+    charger_station_topic = NewTopic(
+        name='charger-station-signals',
+        num_partitions=100,
+        replication_factor=1
+    )
+
+    admin_client.create_topics([charger_station_topic])
+    admin_client.close()
+
+    global producer
+    producer = KafkaProducer(bootstrap_servers='broker:19092')
+
+def send_kafka(data):
+    producer.send(
+    topic='charger-station-signals',
+    key=data['charger_id'].encode('utf-8'),
+    value=json.dumps(data).encode('utf-8'),
+    partition=int(data['charger_id'].split('-')[-1])
+)
 
 def probability_check(probability):
     if random.random() < probability:
@@ -11,8 +39,6 @@ def probability_check(probability):
 
 def get_timestamp():
     return datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
-
-
 
 class ParkingSensor:
     def __init__(self, charger_id):
@@ -29,6 +55,7 @@ class ParkingSensor:
             plate = self.plate
         )
         print(f"[+] Sending parking sensor signal:\n {data}\n")
+        send_kafka(data)
 
     def detect_vehicle(self):
         self.timestamp = get_timestamp()
@@ -60,6 +87,7 @@ class UserDataSensor:
             user_connection = self.user_connection
         )
         print(f"[+] Sending user data sensor signal:\n {data}\n")
+        send_kafka(data)
     
     def connect_user(self):
         self.timestamp = get_timestamp()
@@ -92,6 +120,7 @@ class ChargerSensor:
             energy_delivered = self.energy_delivered
         )
         print(f"[+] Sending charger sensor signal:\n {data}\n")
+        send_kafka(data)
     
     def start_recharging(self):
         self.timestamp = get_timestamp()
@@ -106,8 +135,6 @@ class ChargerSensor:
         self.send_ChargerSensor_signal()
 
         UserDataSensor.disconnect_user()
-
-
 
 
 def simulate_charging_station(charger_id):
@@ -157,9 +184,13 @@ def simulate_charging_station(charger_id):
 
 
 if __name__ == "__main__":
-    # time.sleep(5)
+    time.sleep(5)
 
-    charger_ids = [f'charger-{i}' for i in range(1, 101)]
+    kafka_setup()
+
+    time.sleep(5)
+
+    charger_ids = [f'charger-{i}' for i in range(0, 100)]
 
     threads = []
     for charger_id in charger_ids:
