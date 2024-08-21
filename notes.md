@@ -632,3 +632,58 @@ def send_kafka(data):
     partition=int(data['charger_id'].split('-')[-1])
 )
 ```
+
+# Clickhouse
+Clickhouse é stato integrato creando una table chiamata `data_sensors` che si interfaccia direttamente con Kafka e da cui consuma tutti i segnali in arrivo.
+```
+create table if not exists data_sensors (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'charger-station-signals',
+    kafka_group_name = 'consumer-group-1',
+    kafka_format = 'JSONAsString'
+;
+```
+Dopodiché sono state create due table per ogni sensore, di cui una é una vista materializzata che elabora e trasforma i dati da una fonte raw per poi inserirli nella seconda table. Inoltre ogni sensore ha dei campi unici, che vengono usati dalla vista materializzata per riconoscere se il segnale in questione deve essere immagazzinato nella table associata, oppure lo ignora lasciandolo alle altre viste.
+
+Ecco un esempio per il sensore di parcheggio:
+```
+create table if not exists parse_parking_sensor (
+    timestamp DateTime,
+    charger_id String,
+    vehicle_detected Bool,
+    plate String
+) ENGINE = MergeTree()
+order by timestamp;
+
+
+create materialized view if not exists parking_sensor_consumer to parse_parking_sensor as
+select
+    toDateTime(JSONExtractString(json, 'timestamp')) as timestamp,
+    JSONExtractString (json, 'charger_id') as charger_id,
+    JSONExtractBool (json, 'vehicle_detected') as vehicle_detected,
+    JSONExtractString (json, 'plate') as plate
+from data_sensors
+WHERE JSONHas(json, 'vehicle_detected');
+```
+
+# Grafana
+Su Grafana é stato semplicemente configurato il database e memorizzata una dashboard che mostra quante colonnine di ricarica sono attualmente occupate grazie alla seguente query:
+```
+WITH latest_values AS (
+    SELECT charger_id, vehicle_detected
+    FROM parking_sensor_consumer
+    WHERE (charger_id, timestamp) IN (
+        SELECT charger_id, MAX(timestamp)
+        FROM parking_sensor_consumer
+        GROUP BY charger_id
+    )
+)
+SELECT COUNT(*)
+FROM latest_values
+WHERE vehicle_detected = TRUE;
+```
+
+Il risultato finale é il seguente:  
+![Screenshot_20240821_172637](https://github.com/user-attachments/assets/24b1ef09-b0be-47e4-8b82-91cdc863d320)
