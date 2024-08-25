@@ -4,9 +4,8 @@ create table if not exists data_sensors (
 ) engine = Kafka settings
     kafka_broker_list = 'broker:19092',
     kafka_topic_list = 'charger-station-signals',
-    kafka_group_name = 'consumer-group-1',
-    kafka_format = 'JSONAsString'
-;
+    kafka_group_name = 'clickhouse_group',
+    kafka_format = 'JSONAsString';
 
 
 -- parking sensor
@@ -69,3 +68,36 @@ select
     JSONExtractInt (json, 'energy_delivered') as energy_delivered
 from data_sensors
 WHERE JSONHas(json, 'recharging');
+
+
+
+-- flink transaction profit
+
+create table if not exists transaction_profit (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'transaction-profit',
+    kafka_group_name = 'flink_group',
+    kafka_format = 'JSONAsString';
+
+
+create table if not exists parse_transaction_profit (
+    charger_id String,
+    user_id String,
+    start_recharging DateTime,
+    end_recharging DateTime,
+    profit Float32
+) ENGINE = MergeTree()
+order by end_recharging;
+
+
+create materialized view if not exists transaction_profit_consumer to parse_transaction_profit as
+select
+    JSONExtractString (json, 'charger_id') as charger_id,
+    JSONExtractString (json, 'user_id') as user_id,
+    toDateTime(JSONExtractString(json, 'start_recharging')) as start_recharging,
+    toDateTime(JSONExtractString(json, 'end_recharging')) as end_recharging,
+    JSONExtractFloat(json, 'profit') as profit
+from transaction_profit
+WHERE JSONHas(json, 'profit');

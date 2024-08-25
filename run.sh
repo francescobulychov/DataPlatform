@@ -39,4 +39,4 @@ if [ ! -f ".env" ]; then
     echo "CURRENT_GID=${CURRENT_GID}" >> .env
 fi
 
-docker compose up -d
+docker compose up -d --build

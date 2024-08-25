@@ -53,14 +53,43 @@ services:
       - './grafana/etc/grafana/:/etc/grafana/'
 
   data-generator:
+    hostname: data-generator
     container_name: data-generator
-    build: ./
+    build:
+      dockerfile: ./data-generator/Dockerfile
     volumes:
       - './data-generator:/app'
     command: python3 main.py
 
+  flink-jobmanager:
+    build:
+      dockerfile: ./flink/Dockerfile
+    hostname: flink-jobmanager
+    container_name: flink-jobmanager
+    ports:
+      - "8081:8081"
+    volumes:
+      - './flink/jobs:/opt/flink/jobs'
+      - './flink/usrlib:/opt/flink/usrlib'
+      - './flink/entrypoint.sh:/opt/flink/entrypoint.sh'
+    command: ["/opt/flink/entrypoint.sh"]
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager     
 
-
-
-
+  flink-taskmanager:
+    build:
+      dockerfile: ./flink/Dockerfile
+    hostname: flink-taskmanager
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2     
 
