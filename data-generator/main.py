@@ -154,7 +154,7 @@ def simulate_charging_station(charger_id):
 
         # 5% probability of vehicle not using the charger
         if parking_sensor.vehicle_detected and probability_check(0.05):
-            time.sleep(random.randint(5, 30))
+            time.sleep(random.randint(5, 10)) # 5, 30 change time
             parking_sensor.detect_vehicle_leave()
             continue
 

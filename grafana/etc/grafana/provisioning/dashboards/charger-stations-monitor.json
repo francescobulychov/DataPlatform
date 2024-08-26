@@ -30,6 +30,140 @@
           "color": {
             "mode": "thresholds"
           },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              },
+              {
+                "color": "orange",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 9,
+        "x": 0,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "basemap": {
+          "config": {},
+          "name": "Layer 0",
+          "type": "default"
+        },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showMeasure": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "config": {
+              "showLegend": false,
+              "style": {
+                "color": {
+                  "field": "flag",
+                  "fixed": "dark-green"
+                },
+                "opacity": 1,
+                "rotation": {
+                  "fixed": 0,
+                  "max": 360,
+                  "min": -360,
+                  "mode": "mod"
+                },
+                "size": {
+                  "fixed": 3,
+                  "max": 15,
+                  "min": 2
+                },
+                "symbol": {
+                  "fixed": "img/icons/marker/circle.svg",
+                  "mode": "fixed"
+                },
+                "symbolAlign": {
+                  "horizontal": "center",
+                  "vertical": "center"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
+              }
+            },
+            "name": "Chargers",
+            "tooltip": true,
+            "type": "markers"
+          }
+        ],
+        "tooltip": {
+          "mode": "details"
+        },
+        "view": {
+          "allLayers": true,
+          "id": "coords",
+          "lat": 42.071766,
+          "lon": 11.964184,
+          "zoom": 5.84
+        }
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "builderOptions": "The query is not a select statement.",
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P7E099F39B84EA795"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": "The query is not a select statement."
+          },
+          "pluginVersion": "4.3.2",
+          "rawSql": "WITH latest_vehicle_detected AS (\n    SELECT \n        charger_id,\n        vehicle_detected\n    FROM parking_sensor_consumer\n    WHERE (charger_id, timestamp) IN (\n        SELECT \n            charger_id, \n            MAX(timestamp)\n        FROM parking_sensor_consumer\n        GROUP BY charger_id\n    )\n),\n\nlatest_user_connected AS (\n    SELECT \n        charger_id,\n        user_connection\n    FROM user_data_sensor_consumer\n    WHERE (charger_id, timestamp) IN (\n        SELECT \n            charger_id, \n            MAX(timestamp)\n        FROM user_data_sensor_consumer\n        GROUP BY charger_id\n    )\n)\n\nSELECT cl.charger_id, cl.latitude, cl.longitude, lv.vehicle_detected, luc.user_connection,\n    CASE \n        WHEN lv.vehicle_detected = 1 AND luc.user_connection = 1 THEN 2\n        WHEN lv.vehicle_detected = 1 AND luc.user_connection = 0 THEN 1\n        ELSE 0\n    END AS flag\nFROM charger_location AS cl JOIN  latest_vehicle_detected AS lv \nON cl.charger_id = lv.charger_id\nLEFT JOIN latest_user_connected AS luc \nON cl.charger_id = luc.charger_id;\n",
+          "refId": "A"
+        }
+      ],
+      "title": "Map",
+      "type": "geomap"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P7E099F39B84EA795"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
           "max": 100,
           "min": 0,
@@ -52,7 +186,7 @@
       "gridPos": {
         "h": 10,
         "w": 8,
-        "x": 0,
+        "x": 9,
         "y": 0
       },
       "id": 1,
@@ -168,7 +302,7 @@
       "gridPos": {
         "h": 12,
         "w": 5,
-        "x": 8,
+        "x": 17,
         "y": 0
       },
       "id": 2,

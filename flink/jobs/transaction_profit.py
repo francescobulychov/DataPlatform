@@ -28,13 +28,6 @@ class TransactionProfit(KeyedProcessFunction):
     def __init__(self):
         self.state = None
 
-        self.charger_id = None
-        self.user_id = None
-        self.price = None
-        self.energy_delivered = None
-        self.start_recharging = None
-        self.end_recharging = None
-
     def open(self, runtime_context: RuntimeContext):
         self.state = runtime_context.get_state(ValueStateDescriptor(
             "state", Types.PICKLED_BYTE_ARRAY()))

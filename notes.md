@@ -687,3 +687,27 @@ WHERE vehicle_detected = TRUE;
 
 Il risultato finale é il seguente:  
 ![Screenshot_20240821_172637](https://github.com/user-attachments/assets/24b1ef09-b0be-47e4-8b82-91cdc863d320)
+
+
+# Flink
+
+Flink é stato integrato nel docker compose seguendo la [guida ufficiale](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/resource-providers/standalone/docker/#flink-with-docker-compose), e per la build dei servizi é stato creato un Dockerfile sempre secondo [quest'ultima](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/deployment/resource-providers/standalone/docker/#using-flink-python-on-docker) per poter usufruire delle API di Python.
+
+Il connettore di Flink a Kafka [non fa parte](https://nightlies.apache.org/flink/flink-docs-release-1.19/docs/connectors/datastream/kafka/) della distribuzione, quindi é stato necessario scaricarlo esternamente ed includerlo manualmente, nel nostro caso all'interno della cartella `usrlib`.
+
+Una volta fatto ció é stato modificato l'entrypoint del jobmanager per poter, oltre ad avviare il processo base, eseguire anche i vari jobs. Il nuovo entrypoint é di conseguenza:
+```
+#!/bin/bash
+
+/opt/flink/bin/jobmanager.sh start-foreground &
+sleep 10
+python /opt/flink/jobs/transaction_profit.py &
+wait
+```
+
+Per quanto riguarda il job di esempio **transaction_profit.py**, ha il compito di riconoscere quando una sessione di ricarica inizia e termina, ed estraendo dai dati il prezzo, il tempo totale di ricarica e la potenza in kW, restituisce in un topic separato su Kafka un nuovo messaggio con il guadagno totale di quella specifica sessione e per ogni colonnina.
+
+##### Sources
+- https://nightlies.apache.org/flink/flink-docs-release-1.19/
+- https://repo1.maven.org/maven2/org/apache/flink/flink-connector-jdbc/3.2.0-1.19/
+- https://github.com/augustodn/pyflink-docker
