@@ -152,14 +152,19 @@ def simulate_charging_station(charger_id):
             parking_sensor.detect_vehicle()
             continue
 
-        # 5% probability of vehicle not using the charger
-        if parking_sensor.vehicle_detected and probability_check(0.05):
+        # 2% probability of vehicle not using the charger
+        if parking_sensor.vehicle_detected and probability_check(0.02):
             time.sleep(random.randint(5, 10)) # 5, 30 change time
             parking_sensor.detect_vehicle_leave()
             continue
 
-        # 95% probability of vehicle using the charger
+        # 98% probability of vehicle using the charger
         if parking_sensor.vehicle_detected:
+
+            # 2% probability of user waiting too much before using charger
+            if probability_check(0.02):
+                time.sleep(random.randint(15, 20)) 
+
             time.sleep(random.randint(1, 3))
             user_data_sensor.connect_user()
 
@@ -170,13 +175,13 @@ def simulate_charging_station(charger_id):
 
             charger_sensor.stop_recharging(user_data_sensor)
 
-            # 15% probability of user not leaving for a while
-            if probability_check(0.15):
-                time.sleep(random.randint(7, 10))
+            # 2% probability of user not leaving for a while
+            if probability_check(0.02):
+                time.sleep(random.randint(15, 20))
                 parking_sensor.detect_vehicle_leave()
                 continue
 
-            # 85% probability of user leaving without extra time
+            # 98% probability of user leaving without extra time
             time.sleep(random.randint(2, 5))
             parking_sensor.detect_vehicle_leave()
             continue

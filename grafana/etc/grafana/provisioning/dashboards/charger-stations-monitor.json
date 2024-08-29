@@ -46,7 +46,7 @@
                 "value": null
               },
               {
-                "color": "#EAB839",
+                "color": "yellow",
                 "value": 1
               },
               {
@@ -59,8 +59,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 20,
-        "w": 9,
+        "h": 16,
+        "w": 8,
         "x": 0,
         "y": 0
       },
@@ -128,8 +128,8 @@
         "view": {
           "allLayers": true,
           "id": "coords",
-          "lat": 42.071766,
-          "lon": 11.964184,
+          "lat": 42.035309,
+          "lon": 12.676127,
           "zoom": 5.84
         }
       },
@@ -151,7 +151,7 @@
           "refId": "A"
         }
       ],
-      "title": "Map",
+      "transparent": true,
       "type": "geomap"
     },
     {
@@ -162,11 +162,9 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
-          "max": 100,
-          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -179,31 +177,32 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "currencyEUR"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 8,
+        "h": 4,
+        "w": 5,
         "x": 9,
         "y": 0
       },
-      "id": 1,
+      "id": 4,
       "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": [],
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
       },
       "pluginVersion": "11.1.3",
       "targets": [
@@ -212,10 +211,10 @@
             "aggregates": [],
             "columns": [
               {
-                "alias": "vehicle_detected",
+                "alias": "profit",
                 "custom": false,
-                "name": "vehicle_detected",
-                "type": "UInt8"
+                "name": "profit",
+                "type": "Float32"
               }
             ],
             "database": "default",
@@ -226,7 +225,7 @@
             "mode": "list",
             "orderBy": [],
             "queryType": "table",
-            "table": "parking_sensor_consumer"
+            "table": "parse_transaction_profit"
           },
           "datasource": {
             "type": "grafana-clickhouse-datasource",
@@ -239,10 +238,10 @@
               "aggregates": [],
               "columns": [
                 {
-                  "alias": "vehicle_detected",
+                  "alias": "profit",
                   "custom": false,
-                  "name": "vehicle_detected",
-                  "type": "UInt8"
+                  "name": "profit",
+                  "type": "Float32"
                 }
               ],
               "database": "default",
@@ -253,17 +252,17 @@
               "mode": "list",
               "orderBy": [],
               "queryType": "table",
-              "table": "parking_sensor_consumer"
+              "table": "parse_transaction_profit"
             }
           },
           "pluginVersion": "4.3.2",
           "queryType": "table",
-          "rawSql": "WITH latest_values AS (\n    SELECT charger_id, vehicle_detected\n    FROM parking_sensor_consumer\n    WHERE (charger_id, timestamp) IN (\n        SELECT charger_id, MAX(timestamp)\n        FROM parking_sensor_consumer\n        GROUP BY charger_id\n    )\n)\nSELECT COUNT(*)\nFROM latest_values\nWHERE vehicle_detected = TRUE;",
+          "rawSql": "SELECT SUM(profit) as \"Total Profit\" FROM \"default\".\"parse_transaction_profit\"",
           "refId": "A"
         }
       ],
-      "title": "Occupied Parking Slots",
-      "type": "gauge"
+      "transparent": true,
+      "type": "stat"
     },
     {
       "datasource": {
@@ -273,14 +272,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -295,14 +287,134 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "kwatt"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 12,
+        "h": 4,
         "w": 5,
-        "x": 17,
+        "x": 14,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [],
+            "columns": [
+              {
+                "alias": "profit",
+                "custom": false,
+                "name": "profit",
+                "type": "Float32"
+              }
+            ],
+            "database": "default",
+            "filters": [],
+            "groupBy": [],
+            "limit": 1000,
+            "meta": {},
+            "mode": "list",
+            "orderBy": [],
+            "queryType": "table",
+            "table": "parse_transaction_profit"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P7E099F39B84EA795"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [],
+              "columns": [
+                {
+                  "alias": "profit",
+                  "custom": false,
+                  "name": "profit",
+                  "type": "Float32"
+                }
+              ],
+              "database": "default",
+              "filters": [],
+              "groupBy": [],
+              "limit": 1000,
+              "meta": {},
+              "mode": "list",
+              "orderBy": [],
+              "queryType": "table",
+              "table": "parse_transaction_profit"
+            }
+          },
+          "pluginVersion": "4.3.2",
+          "queryType": "table",
+          "rawSql": "SELECT SUM(total_energy_delivered) as \"Total Energy Delivered\" FROM \"default\".\"parse_transaction_profit\"",
+          "refId": "A"
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P7E099F39B84EA795"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-text"
+            },
+            "inspect": false
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 19,
         "y": 0
       },
       "id": 2,
@@ -371,11 +483,440 @@
           },
           "pluginVersion": "4.3.2",
           "queryType": "traces",
-          "rawSql": "select charger_id as \"Charger ID\", sum(profit) as \"Total Profit\"\nfrom \"default\".\"parse_transaction_profit\" \ngroup by charger_id\norder by \"Total Profit\" desc limit 10;",
+          "rawSql": "select charger_id as \"Charger ID\", sum(profit) as \"Total Profit\"\nfrom \"default\".\"parse_transaction_profit\" \ngroup by charger_id\norder by \"Total Profit\" desc limit 5;",
           "refId": "A"
         }
       ],
-      "title": "Top 10 most profitable chargers",
+      "title": "Most Profitable",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P7E099F39B84EA795"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 99
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 11,
+        "x": 8,
+        "y": 4
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "valueSize": 80
+        },
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [],
+            "columns": [
+              {
+                "alias": "occupied",
+                "custom": false,
+                "name": "occupied",
+                "type": "Int32"
+              },
+              {
+                "hint": "time",
+                "name": "timestamp",
+                "type": "DateTime"
+              }
+            ],
+            "database": "default",
+            "filters": [
+              {
+                "condition": "AND",
+                "filterType": "custom",
+                "hint": "time",
+                "key": "",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "type": "datetime"
+              }
+            ],
+            "groupBy": [],
+            "limit": 1000,
+            "meta": {},
+            "mode": "aggregate",
+            "orderBy": [
+              {
+                "default": true,
+                "dir": "ASC",
+                "hint": "time",
+                "name": ""
+              }
+            ],
+            "queryType": "timeseries",
+            "table": "parse_total_occupied"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P7E099F39B84EA795"
+          },
+          "editorType": "sql",
+          "format": 0,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [],
+              "columns": [
+                {
+                  "alias": "occupied",
+                  "custom": false,
+                  "name": "occupied",
+                  "type": "Int32"
+                },
+                {
+                  "hint": "time",
+                  "name": "timestamp",
+                  "type": "DateTime"
+                }
+              ],
+              "database": "default",
+              "filters": [
+                {
+                  "condition": "AND",
+                  "filterType": "custom",
+                  "hint": "time",
+                  "key": "",
+                  "operator": "WITH IN DASHBOARD TIME RANGE",
+                  "type": "datetime"
+                }
+              ],
+              "groupBy": [],
+              "limit": 1000,
+              "meta": {},
+              "mode": "aggregate",
+              "orderBy": [
+                {
+                  "default": true,
+                  "dir": "ASC",
+                  "hint": "time",
+                  "name": ""
+                }
+              ],
+              "queryType": "timeseries",
+              "table": "parse_total_occupied"
+            }
+          },
+          "pluginVersion": "4.3.2",
+          "queryType": "timeseries",
+          "rawSql": "SELECT timestamp as \"time\", occupied as \"Current Occupied\" FROM \"default\".\"parse_total_occupied\" WHERE ( time >= $__fromTime AND time <= $__toTime ) ORDER BY time ASC LIMIT 1000",
+          "refId": "A"
+        }
+      ],
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P7E099F39B84EA795"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-text"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "currencyEUR"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 19,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [],
+            "columns": [
+              {
+                "alias": "*",
+                "custom": false,
+                "name": "*",
+                "type": "String"
+              }
+            ],
+            "database": "default",
+            "filters": [],
+            "groupBy": [],
+            "limit": 1000,
+            "meta": {},
+            "mode": "list",
+            "orderBy": [],
+            "queryType": "table",
+            "table": "parse_transaction_profit"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P7E099F39B84EA795"
+          },
+          "editorType": "sql",
+          "format": 3,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [],
+              "columns": [
+                {
+                  "alias": "*",
+                  "custom": false,
+                  "name": "*",
+                  "type": "String"
+                }
+              ],
+              "database": "default",
+              "filters": [],
+              "groupBy": [],
+              "limit": 1000,
+              "meta": {},
+              "mode": "list",
+              "orderBy": [],
+              "queryType": "table",
+              "table": "parse_transaction_profit"
+            }
+          },
+          "pluginVersion": "4.3.2",
+          "queryType": "traces",
+          "rawSql": "select charger_id as \"Charger ID\", sum(profit) as \"Total Profit\"\nfrom \"default\".\"parse_transaction_profit\" \ngroup by charger_id\norder by \"Total Profit\" limit 5;",
+          "refId": "A"
+        }
+      ],
+      "title": "Less Profitable",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "P7E099F39B84EA795"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "color-text",
+              "wrapText": false
+            },
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "Long parking after recharging": {
+                  "color": "orange",
+                  "index": 0
+                },
+                "Long parking before recharging": {
+                  "color": "yellow",
+                  "index": 2
+                },
+                "Parking without charging": {
+                  "color": "red",
+                  "index": 1
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 8,
+        "y": 11
+      },
+      "id": 8,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "11.1.3",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [],
+            "columns": [
+              {
+                "alias": "charger_id",
+                "custom": false,
+                "name": "charger_id",
+                "type": "String"
+              },
+              {
+                "alias": "plate",
+                "custom": false,
+                "name": "plate",
+                "type": "String"
+              },
+              {
+                "alias": "violation",
+                "custom": false,
+                "name": "violation",
+                "type": "String"
+              }
+            ],
+            "database": "default",
+            "filters": [],
+            "groupBy": [],
+            "limit": 1000,
+            "meta": {},
+            "mode": "list",
+            "orderBy": [],
+            "queryType": "table",
+            "table": "parse_violations"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "P7E099F39B84EA795"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [],
+              "columns": [
+                {
+                  "alias": "charger_id",
+                  "custom": false,
+                  "name": "charger_id",
+                  "type": "String"
+                },
+                {
+                  "alias": "plate",
+                  "custom": false,
+                  "name": "plate",
+                  "type": "String"
+                },
+                {
+                  "alias": "violation",
+                  "custom": false,
+                  "name": "violation",
+                  "type": "String"
+                }
+              ],
+              "database": "default",
+              "filters": [],
+              "groupBy": [],
+              "limit": 1000,
+              "meta": {},
+              "mode": "list",
+              "orderBy": [],
+              "queryType": "table",
+              "table": "parse_violations"
+            }
+          },
+          "pluginVersion": "4.3.2",
+          "queryType": "table",
+          "rawSql": "SELECT charger_id as \"Charger ID\", plate as \"Plate\", violation as \"Violation\" FROM \"default\".\"parse_violations\" ORDER BY start_parking DESC LIMIT 100",
+          "refId": "A"
+        }
+      ],
+      "transparent": true,
       "type": "table"
     }
   ],

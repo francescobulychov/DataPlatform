@@ -5,7 +5,9 @@ create table if not exists data_sensors (
     kafka_broker_list = 'broker:19092',
     kafka_topic_list = 'charger-station-signals',
     kafka_group_name = 'clickhouse_group',
-    kafka_format = 'JSONAsString';
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1;
 
 
 -- parking sensor
@@ -79,14 +81,16 @@ create table if not exists transaction_profit (
     kafka_broker_list = 'broker:19092',
     kafka_topic_list = 'transaction-profit',
     kafka_group_name = 'flink_group',
-    kafka_format = 'JSONAsString';
-
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1;
 
 create table if not exists parse_transaction_profit (
     charger_id String,
     user_id String,
     start_recharging DateTime,
     end_recharging DateTime,
+    total_energy_delivered Float32,
     profit Float32
 ) ENGINE = MergeTree()
 order by end_recharging;
@@ -98,10 +102,75 @@ select
     JSONExtractString (json, 'user_id') as user_id,
     toDateTime(JSONExtractString(json, 'start_recharging')) as start_recharging,
     toDateTime(JSONExtractString(json, 'end_recharging')) as end_recharging,
+    JSONExtractFloat(json, 'total_energy_delivered') as total_energy_delivered,
     JSONExtractFloat(json, 'profit') as profit
 from transaction_profit
 WHERE JSONHas(json, 'profit');
 
+
+-- flink occupied parking slots
+
+create table if not exists total_occupied (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'total-occupied',
+    kafka_group_name = 'flink_group_occupied_counter',
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1;
+
+create table if not exists parse_total_occupied (
+    timestamp DateTime,
+    occupied INTEGER
+) ENGINE = MergeTree()
+order by timestamp;
+
+
+create materialized view if not exists total_occupied_consumer to parse_total_occupied as
+select
+    toDateTime(JSONExtractString(json, 'timestamp')) as timestamp,
+    JSONExtractInt (json, 'occupied') as occupied
+from total_occupied
+WHERE JSONHas(json, 'occupied');
+
+
+-- flink violations
+
+create table if not exists violations (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'violations',
+    kafka_group_name = 'flink_group_violations',
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1;
+
+create table if not exists parse_violations (
+    charger_id String,
+    user_id Nullable(String),
+    plate String,
+    start_parking DateTime,
+    start_session Nullable(DateTime),
+    end_session Nullable(DateTime),
+    end_parking Nullable(DateTime),
+    violation String
+) ENGINE = MergeTree()
+order by start_parking;
+
+create materialized view if not exists violations_consumer to parse_violations as
+select
+    JSONExtractString (json, 'charger_id') as charger_id,
+    JSONExtractString (json, 'user_id') as user_id,
+    JSONExtractString (json, 'plate') as plate,
+    toDateTime(JSONExtractString(json, 'start_parking')) as start_parking,
+    toDateTimeOrNull(JSONExtractString(json, 'start_session')) as start_session,
+    toDateTimeOrNull(JSONExtractString(json, 'end_session')) as end_session,
+    toDateTimeOrNull(JSONExtractString(json, 'end_parking')) as end_parking,
+    JSONExtractString (json, 'violation') as violation
+from violations
+WHERE JSONHas(json, 'violation');
 
 
 -- charger location

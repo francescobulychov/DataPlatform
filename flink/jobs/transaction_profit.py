@@ -9,8 +9,7 @@ from pyflink.datastream.functions import KeyedProcessFunction, RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor
 
 
-def calculate_profit(previous_state):
-
+def calculate_total_energy_delivered(previous_state):
     end_recharging = datetime.datetime.strptime(previous_state['end_recharging'], '%Y-%m-%d %H:%M:%S')
     start_recharging = datetime.datetime.strptime(previous_state['start_recharging'], '%Y-%m-%d %H:%M:%S')
 
@@ -18,9 +17,7 @@ def calculate_profit(previous_state):
     time_recharging = (end_recharging - start_recharging).total_seconds() 
     time_recharging = time_recharging / 60
 
-    energy_delivered = previous_state['energy_delivered'] * time_recharging
-
-    return round(energy_delivered * previous_state['price'], 2)
+    return previous_state['energy_delivered'] * time_recharging
 
 
 class TransactionProfit(KeyedProcessFunction):
@@ -64,14 +61,15 @@ class TransactionProfit(KeyedProcessFunction):
             if data['recharging'] == False:
                 previous_state['end_recharging'] = data['timestamp']
 
-                profit = calculate_profit(previous_state)
+                total_energy_delivered = calculate_total_energy_delivered(previous_state)
 
                 return_data = dict(
                     charger_id = previous_state['charger_id'],
                     user_id = previous_state['user_id'],
                     start_recharging = previous_state['start_recharging'],
                     end_recharging = previous_state['end_recharging'],
-                    profit = profit
+                    total_energy_delivered = total_energy_delivered,
+                    profit = round(total_energy_delivered * previous_state['price'], 2)
                 )
 
                 self.state.clear()
