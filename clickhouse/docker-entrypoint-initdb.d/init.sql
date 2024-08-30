@@ -173,6 +173,49 @@ from violations
 WHERE JSONHas(json, 'violation');
 
 
+-- flink full sessions
+
+create table if not exists full_sessions (
+    json String
+) engine = Kafka settings
+    kafka_broker_list = 'broker:19092',
+    kafka_topic_list = 'full_sessions',
+    kafka_group_name = 'flink_group_full_sessions',
+    kafka_format = 'JSONAsString',
+    kafka_poll_timeout_ms = 1000,
+    kafka_max_block_size = 1;
+
+create table if not exists parse_full_sessions (
+    charger_id String,
+    start_parking DateTime,
+    plate String,
+    start_session Nullable(DateTime),
+    user_id Nullable(String),
+    price Nullable(Float32),
+    start_recharging Nullable(DateTime),
+    energy_delivered Nullable(INTEGER),
+    end_recharging Nullable(DateTime),
+    end_session Nullable(DateTime),
+    end_parking DateTime
+) ENGINE = MergeTree()
+order by end_parking;
+
+create materialized view if not exists full_sessions_consumer to parse_full_sessions as
+select
+    JSONExtractString (json, 'charger_id') as charger_id,
+    toDateTime(JSONExtractString(json, 'start_parking')) as start_parking,
+    JSONExtractString (json, 'plate') as plate,
+    toDateTimeOrNull(JSONExtractString(json, 'start_session')) as start_session,
+    JSONExtractString (json, 'user_id') as user_id,
+    JSONExtractFloat(json, 'price') as price,
+    toDateTimeOrNull(JSONExtractString(json, 'start_recharging')) as start_recharging,
+    JSONExtractInt (json, 'energy_delivered') as energy_delivered,
+    toDateTimeOrNull(JSONExtractString(json, 'end_recharging')) as end_recharging,
+    toDateTimeOrNull(JSONExtractString(json, 'end_session')) as end_session,
+    toDateTimeOrNull(JSONExtractString(json, 'end_parking')) as end_parking
+from full_sessions;
+
+
 -- charger location
 
 CREATE TABLE if not exists charger_location (
