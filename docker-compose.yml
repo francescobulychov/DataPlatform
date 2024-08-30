@@ -1,7 +1,7 @@
 services:
 
   broker:
-    image: apache/kafka
+    image: apache/kafka:3.8.0
     hostname: broker
     container_name: broker
     ports:
@@ -24,7 +24,7 @@ services:
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
 
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:24.7.4
     hostname: clickhouse
     container_name: clickhouse
     ports:
@@ -40,7 +40,7 @@ services:
        - ./clickhouse/etc/clickhouse-server/users.d/:/etc/clickhouse-server/users.d/
 
   grafana:
-    image: grafana/grafana-enterprise
+    image: grafana/grafana-enterprise:11.2.0
     hostname: grafana
     container_name: grafana
     ports:
