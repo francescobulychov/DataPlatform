@@ -3,11 +3,6 @@
 dirs=(
     "./clickhouse/var/lib/clickhouse/"
     "./clickhouse/var/log/clickhouse-server/"
-    "./clickhouse/docker-entrypoint-initdb.d/"
-    "./clickhouse/etc/clickhouse-server/config.d/"
-    "./clickhouse/etc/clickhouse-server/users.d/"
-    "./grafana/etc/grafana/"
-    "./data-generator/"
 )
 
 for dir in ${dirs[@]}; do
@@ -16,21 +11,6 @@ for dir in ${dirs[@]}; do
         mkdir -p $dir
     fi
 done
-
-files=(
-    "./clickhouse/etc/clickhouse-server/config.d/docker_related_config.xml"
-    "./data-generator/main.py"
-    "./data-generator/requirements.txt"
-)
-
-for file in ${files[@]}; do
-
-    if [ ! -f $file ]; then
-        file_name=$(basename $file)
-        cp ./.backup_files/$file_name $file
-    fi
-done
-
 
 if [ ! -f ".env" ]; then
     CURRENT_UID=$(id -u)

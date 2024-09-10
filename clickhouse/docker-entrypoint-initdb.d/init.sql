@@ -179,7 +179,7 @@ create table if not exists full_sessions (
     json String
 ) engine = Kafka settings
     kafka_broker_list = 'broker:19092',
-    kafka_topic_list = 'full_sessions',
+    kafka_topic_list = 'full-sessions',
     kafka_group_name = 'flink_group_full_sessions',
     kafka_format = 'JSONAsString',
     kafka_poll_timeout_ms = 1000,

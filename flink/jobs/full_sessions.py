@@ -110,7 +110,7 @@ if __name__ == '__main__':
     stream = stream.process(FullSessions(), output_type=Types.STRING())
 
     kafka_producer = FlinkKafkaProducer(
-        topic='full_sessions',
+        topic='full-sessions',
         serialization_schema=SimpleStringSchema(),
         producer_config={'bootstrap.servers': 'broker:19092'}
     )
